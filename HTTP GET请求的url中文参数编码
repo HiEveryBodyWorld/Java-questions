@@ -1,0 +1,37 @@
+场景：前端用JS构造了一个GET请求，携带了一个中文的参数，通过Spring MVC传到后台以后解析中文是乱码。
+
+1. 发送请求，从浏览器中捕获到http的请求内容如下：
+
+1 Remote Address:[::1]:8080
+2 Request URL:http://localhost:8080/fax/downloadFax?fname=%e6%8e%88%e6%9d%832.png
+3 Request Method:GET
+4 Status Code:201 Created
+
+2. 第一时间认为是URL编解码的问题，所以学习了一下相关的转换方法：
+
+1 //将utf-8格式的中文转换成URL编码
+2 encodeStr = URLEncoder.encode(fname, "utf-8"); 
+3 //将URL编码的字符串转换成utf-8格式的中文
+4 decodeFName = URLDecoder.decode(encodeStr, "utf-8");
+
+测试结果，没有达到预期，再仔细看看，笑了，上面不是做了一次A->B->A的无效转码吗？！
+
+3.乱码是怎么回事呢？
+
+我的页面设置的utf-8格式，我的Spring MVC框架的编码filter也配置了utf-8，现在的乱码是怎么回事呢？
+
+4. 原因找到了：
+
+Spring MVC 是基于Servlet，在Http请求到达Servlet解析之前，GET过来的URL已经被Tomcat先做了一次URLDecode。
+
+Tomcat对GET方式默认的URL解码结果是iso-8859-1而不是UTF-8！
+
+5. 解决办法：
+
+decodeFName = new String(fName.getBytes("iso-8859-1"),"utf-8");
+
+由于上述原因，在构造HTTP响应消息时，需要把中文字符再转成iso-8859-1。
+
+6.还有一种办法，就是配置Tomcat：
+
+在Tomcat的conf目录下的server.xml中配置Connector的URIEconding=“UTF-8"属性即可，没有这个参数可以手动加上。

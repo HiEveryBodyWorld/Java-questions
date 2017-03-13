@@ -1,0 +1,38 @@
+问题一：在使用XStream把对象转为xml时，XStream会把单"_"转成"__"：
+
+解决：如下方式定义XStream
+
+[javascript] view plain copy
+
+    XStream xStream = new XStream(new XppDriver(new XmlFriendlyNameCoder("_-", "_")));  
+
+
+分析：因为“_”是关键字，默认的会变为“__ ”;$也是关键字，默认为“_-”,这2个参数一个改变$的显示，一个改变_的显示
+
+进入XmlFriendlyNameCoder源码可以看到
+
+[javascript] view plain copy
+
+    public XmlFriendlyNameCoder(String dollarReplacement, String escapeCharReplacement) {  
+            this(dollarReplacement, escapeCharReplacement, "_.");  
+        }  
+
+
+
+
+问题二：报错信息如下：
+
+[javascript] view plain copy
+
+    java.lang.NoSuchMethodError: com.thoughtworks.xstream.io.xml.XppDriver.<init>(Lcom/thoughtworks/xstream/io/naming/NameCoder;)V  
+
+
+分析：明明我已经导入了jar，但是会报找不到方法，我就觉得是因为jar包版本问题了。所以升级版本后问题解决。原来是1.1.3  现在改成1.2.2.
+
+[javascript] view plain copy
+
+    <span style="white-space:pre">        </span><dependency>  
+                <groupId>xstream</groupId>  
+                <artifactId>xstream</artifactId>  
+                <version>1.2.2</version>  
+            </dependency>  

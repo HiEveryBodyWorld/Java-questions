@@ -1,3 +1,7 @@
+http://blog.csdn.net/u010246789/article/details/51516511
+
+
+
 1.在controller中设置支付宝支付的入口
 //充值接口
     @RequestMapping(value = "/recharge", method = RequestMethod.POST)

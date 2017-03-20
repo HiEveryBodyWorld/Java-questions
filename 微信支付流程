@@ -96,17 +96,22 @@ public class UnifiedOrderRequestExt extends UnifiedOrderRequest {
 	}
   
   3.生成订单:分两部分：一部分是业务需求的订单信息，就是发起支付前的订单信息，业务系统自行创建存储；另一部分是满足统一下单API要求的订单信息（也是我们这里要讲的）。“xxxxxx”:是你需要自己填写的对应信息： 
-  private String createOrderInfo(String orderId) {
+ /**
+	 * 生成订单
+	 * 
+	 * @param orderId
+	 * @return
+	 */
+	private String createOrderInfo(String orderId,String total_fee,String body) {
 		// 生成订单对象
 		UnifiedOrderRequest unifiedOrderRequest = new UnifiedOrderRequest();
-		unifiedOrderRequest.setAppid("xxxxxxxxxxxxx");// 公众账号ID
-		unifiedOrderRequest.setMch_id("xxxxxxxxx");// 商户号
+		unifiedOrderRequest.setAppid(WechatConfig.appid);// 公众账号ID
+		unifiedOrderRequest.setMch_id(WechatConfig.mch_id);// 商户号
 		unifiedOrderRequest.setNonce_str(StringUtil.makeUUID());// 随机字符串
-		unifiedOrderRequest.setBody("xxxxxx");// 商品描述
+		unifiedOrderRequest.setBody(body);// 商品描述
 		unifiedOrderRequest.setOut_trade_no(orderId);// 商户订单号
-		unifiedOrderRequest.setTotal_fee("x"); // 金额需要扩大100倍:1代表支付时是0.01
-		unifiedOrderRequest.setSpbill_create_ip("xxxxxxxxxxxxx");// 终端IP
-		unifiedOrderRequest.setNotify_url("xxxxxxxxxxxxxx");// 通知地址
+		unifiedOrderRequest.setTotal_fee(total_fee); // 金额需要扩大100倍:1代表支付时是0.01
+		unifiedOrderRequest.setNotify_url(WechatConfig.notify_url);// 通知地址
 		unifiedOrderRequest.setTrade_type("NATIVE");// JSAPI--公众号支付、NATIVE--原生扫码支付、APP--app支付
 		unifiedOrderRequest.setSign(createSign(unifiedOrderRequest));// 签名
 		// 将订单对象转为xml格式

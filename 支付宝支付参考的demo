@@ -1,0 +1,374 @@
+一、场景：公司需要在网站上进行支付宝支付。
+二、API：使用支付宝开放平台的支付能力-即时到账接口。支付宝开放平台链接
+三、分析：
+
+1、支付宝的文档比较容易看，主要是有相应的DEMO，我这里看的DEMO是 Java-UTF-8版本。
+
+
+2、导入DEMO，在com.alipay.config中填入对应的partner和key（在对应的商户后台获取）就可以直接运行了解支付流程了。
+
+
+3、改写：我这边使用的是springmvc+mybatis。商品发起购买（走支付宝支付）、跳转到支付宝、支付宝回调支付状态。
+四、实现：
+
+1、商品发起购买请求（将DEMO中的页面直接拿过来用了）。
+
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    <body>  
+        <div class="header">  
+            <div class="container black">  
+                <div class="qrcode">  
+                    <div class="littlecode">  
+                        <img width="16px" src="img/little_qrcode.jpg" id="licode">  
+                        <div class="showqrs" id="showqrs">  
+                            <div class="shtoparrow"></div>  
+                            <div class="guanzhuqr">  
+                                <img src="img/guanzhu_qrcode.png" width="80">  
+                                <div class="shmsg" style="margin-top:5px;">  
+                                请扫码关注  
+                                </div>  
+                                <div class="shmsg" style="margin-bottom:5px;">  
+                                    接收重要信息  
+                                </div>  
+                            </div>  
+                        </div>  
+                    </div>        
+                </div>  
+            </div>  
+            <div class="container">  
+                <div class="nav">  
+                    <a href="https://www.alipay.com/" class="logo"><img src="img/alipay_logo.png" height="30px"></a>  
+                    <span class="divier"></span>  
+                    <a href="http://open.alipay.com/platform/home.htm" class="open" target="_blank">开放平台</a>  
+                    <ul class="navbar">  
+                        <li><a href="https://doc.open.alipay.com/doc2/detail?treeId=62&articleId=103566&docType=1" target="_blank">在线文档</a></li>  
+                        <li><a href="https://cschannel.alipay.com/portal.htm?sourceId=213" target="_blank">技术支持</a></li>  
+                    </ul>  
+                </div>  
+            </div>  
+            <div class="container blue">  
+                <div class="title">支付宝即时到账(create_direct_pay_by_user)</div>  
+            </div>  
+        </div>  
+        <div class="content">  
+            <%-- <form action="${ctx}/aliPay/open" class="alipayform" method="POST" target="_blank"> --%>  
+                <div class="element" style="margin-top:60px;">  
+                    <div class="legend">支付宝即时到账交易接口快速通道 </div>  
+                </div>  
+                <div class="element">  
+                    <div class="etitle">商户订单号:</div>  
+                    <div class="einput"><input type="text" name="WIDout_trade_no" id="out_trade_no"></div>  
+                    <br>  
+                    <div class="mark">注意：商户订单号(out_trade_no).必填(建议是英文字母和数字,不能含有特殊字符)</div>  
+                </div>  
+                  
+                <div class="element">  
+                    <div class="etitle">商品名称:</div>  
+                    <div class="einput"><input type="text" name="WIDsubject" id="WIDsubject" value="test商品123"></div>  
+                    <br>  
+                    <div class="mark">注意：产品名称(subject)，必填(建议中文，英文，数字，不能含有特殊字符)</div>  
+                </div>  
+                <div class="element">  
+                    <div class="etitle">付款金额:</div>  
+                    <div class="einput"><input type="text" name="WIDtotal_fee" id="WIDtotal_fee" value="0.01"></div>  
+                    <br>  
+                    <div class="mark">注意：付款金额(total_fee)，必填(格式如：1.00,请精确到分)</div>  
+                </div>  
+                <div class="element">  
+                    <div class="etitle">商品描述:</div>  
+                    <div class="einput"><input type="text" name="WIDbody" id="WIDbody" value="即时到账测试"></div>  
+                    <br>  
+                    <div class="mark">注意：商品描述(body)，选填(建议中文，英文，数字，不能含有特殊字符)</div>  
+                </div>  
+                <div class="element">  
+                    <input type="button" class="alisubmit" id="sbumitBtn" value ="确认支付">  
+                </div>  
+        </div>  
+        <div id="returnAli"></div>  
+        <div class="footer">  
+            <p class="footer-sub">  
+                <a href="http://ab.alipay.com/i/index.htm" target="_blank">关于支付宝</a><span>|</span>  
+                <a href="https://e.alipay.com/index.htm" target="_blank">商家中心</a><span>|</span>  
+                <a href="https://job.alibaba.com/zhaopin/index.htm" target="_blank">诚征英才</a><span>|</span>  
+                <a href="http://ab.alipay.com/i/lianxi.htm" target="_blank">联系我们</a><span>|</span>  
+                <a href="#" id="international" target="_blank">International Business</a><span>|</span>  
+                <a href="http://ab.alipay.com/i/jieshao.htm#en" target="_blank">About Alipay</a>  
+                <br>  
+                 <span>支付宝版权所有</span>  
+                <span class="footer-date">2004-2016</span>  
+                <span><a href="http://fun.alipay.com/certificate/jyxkz.htm" target="_blank">ICP证：沪B2-20150087</a></span>  
+            </p>  
+      
+                 
+        </div>  
+    </body>  
+
+
+2、点击确认支付之后，这里通过ajax请求后台，将返回的一段html代码直接放到上面的<div id="returnALi"></div>中，这个表单会自动提交。
+
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    $(function (){  
+        $("#sbumitBtn").on('click', function(){  
+            $.ajax({  
+                type : "post",  
+                data : {  
+                    WIDout_trade_no : $('#out_trade_no').val(),  
+                    WIDsubject : $('#WIDsubject').val(),  
+                    WIDtotal_fee : $('#WIDtotal_fee').val(),  
+                    WIDbody : $('#WIDbody').val()  
+                },  
+                url : "${ctx}/aliPay/open",  
+                success : function(data) {  
+                    $('#returnAli').append(data.sHtmlText);  
+                },  
+                error : function(da){  
+                }  
+            });  
+        })  
+          
+    });  
+
+
+3、后台controller中，基本是将demo中的alipayapi.jsp直接拿来用了，不同的是，参数的传递是自己定义的，返回方式符合apringmvc要求，并且根据业务需求保存了状态为未支付的订单信息。
+
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    @RequestMapping("open")  
+    public ResponseEntity<HttpEntity> open(Model model, String WIDout_trade_no, String WIDsubject, String WIDtotal_fee,  
+            String WIDbody) {  
+      
+        //////////////////////////////////// 请求参数//////////////////////////////////////  
+      
+        // 商户订单号，商户网站订单系统中唯一订单号，必填  
+        String out_trade_no = WIDout_trade_no;  
+        // 订单名称，必填  
+        String subject = WIDsubject;  
+        // 付款金额，必填  
+        String total_fee = WIDtotal_fee;  
+        // 商品描述，可空  
+        String body = WIDbody;  
+      
+        // 把请求参数打包成数组  
+        Map<String, String> sParaTemp = new HashMap<String, String>();  
+        sParaTemp.put("service", AlipayConfig.service);  
+        sParaTemp.put("partner", AlipayConfig.partner);  
+        sParaTemp.put("seller_id", AlipayConfig.seller_id);  
+        sParaTemp.put("_input_charset", AlipayConfig.input_charset);  
+        sParaTemp.put("payment_type", AlipayConfig.payment_type);  
+        sParaTemp.put("notify_url", AlipayConfig.notify_url);  
+        sParaTemp.put("return_url", AlipayConfig.return_url);  
+        sParaTemp.put("anti_phishing_key", AlipayConfig.anti_phishing_key);  
+        sParaTemp.put("exter_invoke_ip", AlipayConfig.exter_invoke_ip);  
+        sParaTemp.put("out_trade_no", out_trade_no);  
+        sParaTemp.put("subject", subject);  
+        sParaTemp.put("total_fee", total_fee);  
+        sParaTemp.put("body", body);  
+        // 其他业务参数根据在线开发文档，添加参数.文档地址:https://doc.open.alipay.com/doc2/detail.htm?spm=a219a.7629140.0.0.O9yorI&treeId=62&articleId=103740&docType=1  
+        // 如sParaTemp.put("参数名","参数值");  
+      
+        // 建立请求  
+        String sHtmlText = AlipaySubmit.buildRequest(sParaTemp, "get", "确认");  
+        model.addAttribute("sHtmlText", sHtmlText);  
+      
+        // 保存支付记录  
+        hysWebMeetingAliService.insertSelective(sParaTemp);  
+        return new ResponseEntity(model, HttpStatus.OK);  
+    }  
+
+ 
+
+4、回调：也是直接将DEMO中的notify_url.jsp中的java代码拿来稍微做了修改和加上业务代码（修改状态等）；
+
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    @RequestMapping("notify")  
+    @ResponseBody  
+    public String notify(HttpServletRequest request){  
+        //获取支付宝POST过来反馈信息  
+        Map<String,String> params = new HashMap<String,String>();  
+        Map requestParams = request.getParameterMap();  
+        for (Iterator iter = requestParams.keySet().iterator(); iter.hasNext();) {  
+            String name = (String) iter.next();  
+            String[] values = (String[]) requestParams.get(name);  
+            String valueStr = "";  
+            for (int i = 0; i < values.length; i++) {  
+                valueStr = (i == values.length - 1) ? valueStr + values[i]  
+                        : valueStr + values[i] + ",";  
+            }  
+            //乱码解决，这段代码在出现乱码时使用。如果mysign和sign不相等也可以使用这段代码转化  
+            //valueStr = new String(valueStr.getBytes("ISO-8859-1"), "gbk");  
+            params.put(name, valueStr);  
+        }  
+          
+        //获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表(以下仅供参考)//  
+        //商户订单号  
+      
+        String out_trade_no = request.getParameter("out_trade_no");  
+      
+        //支付宝交易号  
+      
+        String trade_no = request.getParameter("trade_no");  
+      
+        //交易状态  
+        String trade_status = request.getParameter("trade_status");  
+      
+        //获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表(以上仅供参考)//  
+      
+        if(AlipayNotify.verify(params)){//验证成功  
+            //////////////////////////////////////////////////////////////////////////////////////////  
+            //请在这里加上商户的业务逻辑程序代码  
+      
+            //——请根据您的业务逻辑来编写程序（以下代码仅作参考）——  
+            boolean flg = false;  
+            if(trade_status.equals("TRADE_FINISHED")){  
+                //判断该笔订单是否在商户网站中已经做过处理  
+                    //如果没有做过处理，根据订单号（out_trade_no）在商户网站的订单系统中查到该笔订单的详细，并执行商户的业务程序  
+                    //请务必判断请求时的total_fee、seller_id与通知时获取的total_fee、seller_id为一致的  
+                    //如果有做过处理，不执行商户的业务程序  
+                      
+                //注意：  
+                //退款日期超过可退款期限后（如三个月可退款），支付宝系统发送该交易状态通知  
+            } else if (trade_status.equals("TRADE_SUCCESS")){  
+                //判断该笔订单是否在商户网站中已经做过处理  
+                    //如果没有做过处理，根据订单号（out_trade_no）在商户网站的订单系统中查到该笔订单的详细，并执行商户的业务程序  
+                    //请务必判断请求时的total_fee、seller_id与通知时获取的total_fee、seller_id为一致的  
+                    //如果有做过处理，不执行商户的业务程序  
+                      
+                //注意：  
+                //付款完成后，支付宝系统发送该交易状态通知  
+                  
+                //根据订单号将订单状态和支付宝记录表中状态都改为已支付  
+                flg = hysWebMeetingAliService.changeOrderAndAliStatusSuccess(out_trade_no);  
+                  
+            }  
+      
+            //——请根据您的业务逻辑来编写程序（以上代码仅作参考）——  
+                  
+            //out.print("success"); //请不要修改或删除  
+            if(flg){  
+                return "success";  
+            }else{  
+                return "fail";  
+            }  
+      
+            //////////////////////////////////////////////////////////////////////////////////////////  
+        }else{//验证失败  
+            //out.print("fail");  
+            return "fail";  
+        }  
+    }  
+
+
+5、return_url:页面跳转同步通知页面路径,就是支付成功后，支付宝回跳的一个页面。“需http://格式的完整路径，不能加?id=123这类自定义参数，必须外网可以正常访问”，支付宝明确规定了回跳的页面后面不能自定义参数，那么有的我们就是根据一些类型去判断跳转的就有点麻烦了。我这里做了一个取巧的做法：先把return_url.jsp中的java代码也直接搬过来，略做修改（换成springmvc的方式），我的回跳地址就是IP/aliPay/returnUrl，然后再new ModelAndView("redirect:/meeting/info")进行重定向到我们想到的url中，（参数问题看下文总结第4点吧）。
+
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+        @RequestMapping("returnUrl")  
+        public ModelAndView returnUrl(HttpServletRequest request){  
+            ModelAndView mv = new ModelAndView("redirect:/meeting/info");  
+              
+            //获取支付宝GET过来反馈信息  
+            Map<String,String> params = new HashMap<String,String>();  
+            Map requestParams = request.getParameterMap();  
+            for (Iterator iter = requestParams.keySet().iterator(); iter.hasNext();) {  
+                String name = (String) iter.next();  
+                String[] values = (String[]) requestParams.get(name);  
+                String valueStr = "";  
+                for (int i = 0; i < values.length; i++) {  
+                    valueStr = (i == values.length - 1) ? valueStr + values[i]  
+                            : valueStr + values[i] + ",";  
+                }  
+                //乱码解决，这段代码在出现乱码时使用。如果mysign和sign不相等也可以使用这段代码转化  
+                //valueStr = new String(valueStr.getBytes("ISO-8859-1"), "utf-8");  
+                params.put(name, valueStr);  
+            }  
+              
+            //获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表(以下仅供参考)//  
+            //商户订单号  
+      
+            String out_trade_no = request.getParameter("out_trade_no");  
+      
+            //支付宝交易号  
+      
+            String trade_no = request.getParameter("trade_no");  
+      
+            //交易状态  
+            String trade_status = request.getParameter("trade_status");  
+              
+            <span style="color:#ff0000;">String meetingId = request.getParameter("extra_common_param");  
+            mv.addObject("meetingId", meetingId);</span>  
+      
+            //获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表(以上仅供参考)//  
+              
+            //计算得出通知验证结果  
+            boolean verify_result = AlipayNotify.verify(params);  
+              
+            if(verify_result){//验证成功  
+                //////////////////////////////////////////////////////////////////////////////////////////  
+                //请在这里加上商户的业务逻辑程序代码  
+      
+                //——请根据您的业务逻辑来编写程序（以下代码仅作参考）——  
+                if(trade_status.equals("TRADE_FINISHED") || trade_status.equals("TRADE_SUCCESS")){  
+                    //判断该笔订单是否在商户网站中已经做过处理  
+                        //如果没有做过处理，根据订单号（out_trade_no）在商户网站的订单系统中查到该笔订单的详细，并执行商户的业务程序  
+                        //如果有做过处理，不执行商户的业务程序  
+                }  
+                  
+                //该页面可做页面美工编辑  
+    //          out.println("验证成功<br />");  
+                //——请根据您的业务逻辑来编写程序（以上代码仅作参考）——  
+      
+                //////////////////////////////////////////////////////////////////////////////////////////  
+            }else{  
+                //该页面可做页面美工编辑  
+    //          out.println("验证失败");  
+            }  
+              
+            return mv;  
+        }  
+
+
+
+五、总结：
+
+1、支付宝集成比较简答，稍微看下DEMO，跑一下了解了流程就比较容易了。
+
+2、调试的时候，特别是回调，要把项目部署到能够外网访问的服务器上。
+
+3、我没有遇到上面莫名其妙的问题，如果遇到了的话，可以联系我，或者看下Eclipse远程debug这篇文章，进行问题的跟踪。
+
+4、做页面跳转同步通知页面路径时，需要传递参数怎么办，我一开始是自定义了一个参数，可是没有取到，然后我看到DEMO中有一句注释是这么写的：
+
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    // 其他业务参数根据在线开发文档，添加参数.文档地址:https://doc.open.alipay.com/doc2/detail.htm?spm=a219a.7629140.0.0.O9yorI&treeId=62&articleId=103740&docType=1  
+
+所以我打开看了之后，选择了公用回传参数extra_common_param，我自己知道这个字段对于我来说是什么含义。不过也要注意，人家说明了：
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    参数body（商品描述）、subject（商品名称）、extra_common_param（公用回传参数）不能包含特殊字符（如：#、%、&、+）、敏感词汇，也不能使用外国文字（旺旺不支持的外文，如：韩文、泰语、藏文、蒙古文、阿拉伯语）；  
+
+
+open方法中设值：
+
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    sParaTemp.put("extra_common_param", meetingId);  
+
+
+returnUrl方法中取值，并作为重定向参数：
+[javascript] view plain copy
+在CODE上查看代码片派生到我的代码片
+
+    String meetingId = request.getParameter("extra_common_param");  
+            mv.addObject("meetingId", meetingId);  

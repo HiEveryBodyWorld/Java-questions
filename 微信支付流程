@@ -1,0 +1,366 @@
+blog：http://blog.csdn.net/u010449283/article/details/52195117
+
+准备：根据统一下单接口API我先定义了三个对象：UnifiedOrderRequest（统一下单请求参数(必填)）、UnifiedOrderRequestExt（统一下单请求参数(非必填)）、UnifiedOrderRespose（统一下单返回参数）；具体如下代码，get、set方法可自行生产，太占篇幅。
+
+UnifiedOrderRequest.class 
+
+/*
+ * 
+ * 微信请求必须参数bean
+ * 
+ * */
+
+public class UnifiedOrderRequest {
+
+	private String appid; // 公众账号ID
+	private String mch_id; // 商户号
+	private String nonce_str; // 随机字符串
+	private String sign; // 签名
+	private String body; // 商品描述
+	private String out_trade_no; // 商户订单号
+	private String total_fee; // 总金额
+	private String spbill_create_ip; // 终端IP
+	private String notify_url; // 通知地址
+	private String trade_type; // 交易类型
+  ...
+  }
+  
+  /*
+ * 
+ * 微信请求不必须参数bean
+ * 
+ * */
+public class UnifiedOrderRequestExt extends UnifiedOrderRequest {
+
+	private String device_info; // 设备号
+	private String detail; // 商品详情
+	private String attach; // 附加数据
+	private String fee_type; // 货币类型
+	private String time_start; // 交易起始时间
+	private String time_expire; // 交易结束时间
+	private String goods_tag; // 商品标记
+	private String product_id; // 商品ID
+	private String limit_pay; // 指定支付方式
+	private String openid; // 用户标识
+  ...
+  }
+  
+  public class UnifiedOrderRespose {
+
+	
+	private String return_code;             //返回状态码  
+    private String return_msg;              //返回信息  
+    private String appid;                   //公众账号ID  
+    private String mch_id;                  //商户号  
+    private String device_info;             //设备号  
+    private String nonce_str;               //随机字符串  
+    private String sign;                    //签名  
+    private String result_code;             //业务结果  
+    private String err_code;                //错误代码  
+    private String err_code_des;            //错误代码描述  
+    private String trade_type;              //交易类型  
+    private String prepay_id;               //预支付交易会话标识  
+    private String code_url;                //二维码链接  
+    。。。
+    }
+  
+  2.Controller 入口
+  /**
+	 * 创建二维码
+	 */
+	@RequestMapping(value = "/createQRCode", method = RequestMethod.POST)
+	public void createQRCode(String orderId, HttpServletResponse response) {
+
+		// 生成订单
+		String orderInfo = createOrderInfo(orderId);
+		// 调统一下单API
+		String code_url = httpOrder(orderInfo);
+		// 将返回预支付交易链接（code_url）生成二维码图片
+		// 这里使用的是zxing
+		try {
+			int width = 200;
+			int height = 200;
+			String format = "png";
+			Hashtable hints = new Hashtable();
+			hints.put(EncodeHintType.CHARACTER_SET, "utf-8");
+			BitMatrix bitMatrix = new MultiFormatWriter().encode(code_url,
+					BarcodeFormat.QR_CODE, width, height, hints);
+			OutputStream out = null;
+			out = response.getOutputStream();
+			MatrixToImageWriter.writeToStream(bitMatrix, format, out);
+			out.flush();
+			out.close();
+		} catch (Exception e) {
+		}
+
+	}
+  
+  3.生成订单:分两部分：一部分是业务需求的订单信息，就是发起支付前的订单信息，业务系统自行创建存储；另一部分是满足统一下单API要求的订单信息（也是我们这里要讲的）。“xxxxxx”:是你需要自己填写的对应信息： 
+  private String createOrderInfo(String orderId) {
+		// 生成订单对象
+		UnifiedOrderRequest unifiedOrderRequest = new UnifiedOrderRequest();
+		unifiedOrderRequest.setAppid("xxxxxxxxxxxxx");// 公众账号ID
+		unifiedOrderRequest.setMch_id("xxxxxxxxx");// 商户号
+		unifiedOrderRequest.setNonce_str(StringUtil.makeUUID());// 随机字符串
+		unifiedOrderRequest.setBody("xxxxxx");// 商品描述
+		unifiedOrderRequest.setOut_trade_no(orderId);// 商户订单号
+		unifiedOrderRequest.setTotal_fee("x"); // 金额需要扩大100倍:1代表支付时是0.01
+		unifiedOrderRequest.setSpbill_create_ip("xxxxxxxxxxxxx");// 终端IP
+		unifiedOrderRequest.setNotify_url("xxxxxxxxxxxxxx");// 通知地址
+		unifiedOrderRequest.setTrade_type("NATIVE");// JSAPI--公众号支付、NATIVE--原生扫码支付、APP--app支付
+		unifiedOrderRequest.setSign(createSign(unifiedOrderRequest));// 签名
+		// 将订单对象转为xml格式
+		XStream xStream = new XStream(new XppDriver(new XmlFriendlyNameCoder(
+				"_-", "_")));
+		xStream.alias("xml", UnifiedOrderRequest.class);// 根元素名需要是xml
+		return xStream.toXML(unifiedOrderRequest);
+	}
+  4.调统一下单API:根据要求将生成订单中返回的xml向微信给定的统一下单URL地址：https://api.mch.weixin.qq.com/pay/unifiedorder，发送请求，成功并获得二维码。 
+  
+  /**
+	 * 调统一下单API
+	 * 
+	 * @param orderInfo
+	 * @return
+	 */
+	private String httpOrder(String orderInfo) {
+		String url = "https://api.mch.weixin.qq.com/pay/unifiedorder";
+		try {
+			HttpURLConnection conn = (HttpURLConnection) new URL(url)
+					.openConnection();
+			// 加入数据
+			conn.setRequestMethod("POST");
+			conn.setDoOutput(true);
+
+			BufferedOutputStream buffOutStr = new BufferedOutputStream(
+					conn.getOutputStream());
+			buffOutStr.write(orderInfo.getBytes());
+			buffOutStr.flush();
+			buffOutStr.close();
+
+			// 获取输入流
+			BufferedReader reader = new BufferedReader(new InputStreamReader(
+					conn.getInputStream()));
+
+			String line = null;
+			StringBuffer sb = new StringBuffer();
+			while ((line = reader.readLine()) != null) {
+				sb.append(line);
+			}
+
+			XStream xStream = new XStream(new XppDriver(
+					new XmlFriendlyNameCoder("_-", "_")));
+			// 将请求返回的内容通过xStream转换为UnifiedOrderRespose对象
+			xStream.alias("xml", UnifiedOrderRespose.class);
+			UnifiedOrderRespose unifiedOrderRespose = (UnifiedOrderRespose) xStream
+					.fromXML(sb.toString());
+
+			// 根据微信文档return_code 和result_code都为SUCCESS的时候才会返回code_url
+			if (null != unifiedOrderRespose
+					&& "SUCCESS".equals(unifiedOrderRespose.getReturn_code())
+					&& "SUCCESS".equals(unifiedOrderRespose.getResult_code())) {
+				return unifiedOrderRespose.getCode_url();
+			} else {
+				return null;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+  
+  5.跳转到微信支付的二维码页面。
+  
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/includes/taglibs.jsp"%>
+<%
+  String path = request.getContextPath();
+  String basePath = request.getScheme() + "://"
+          + request.getServerName() + ":" + request.getServerPort()
+          + path;
+%>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>案例</title>
+<%@ include file="/WEB-INF/includes/jscss.jsp"%>
+</head>
+<body>
+	
+    <img src="${basePath}/wxPay/createQRCode?orderId=${resultcode}" width="174px"> 
+     
+</body>
+</html>
+  
+ 6。用户可以通过维系客户端进行扫码支付。支付完成后回调我们notify_url设置的url，通过成功的回调来更改业务系统中的订单状态或者一些业务需求。（注意notify_url要设置成以下接口的地址）
+  
+  @RequestMapping("notify")
+	@ResponseBody
+	public ModelAndView notify(HttpServletRequest request,
+			HttpServletResponse response)// 支付回调页面
+	{
+		String returnNotifyXML = getPostXML(request);
+		XStream xStream = new XStream(new XppDriver(new XmlFriendlyNameCoder(
+				"_-", "_")));
+		// 将请求返回的内容通过xStream转换为UnifiedOrderRespose对象
+		xStream.alias("xml", NotifyPayRequest.class);
+		NotifyPayRequest notifyPayRequest = (NotifyPayRequest) xStream
+				.fromXML(returnNotifyXML);
+		/*
+		 * //设置支付参数 RequestHandler paySignReqHandler = new RequestHandler(null);
+		 * WriteLog(" 微支付notice resultFromWx=" + resultFromWx); var res =
+		 * XDocument.Parse(resultFromWx);
+		 */
+		ModelAndView mav = new ModelAndView();
+		try {
+			// 通信成功
+			if (notifyPayRequest.getReturn_code() == "SUCCESS") {
+				if (notifyPayRequest.getResult_code() == "SUCCESS") {
+					/*
+					 * //交易成功 paySignReqHandler.SetParameter("return_code",
+					 * "SUCCESS"); paySignReqHandler.SetParameter("return_msg",
+					 * "OK");
+					 * 
+					 * string ordecode =
+					 * res.Element("xml").Element("out_trade_no").Value;
+					 * BLL.orders Bll = new BLL.orders(); try { if
+					 * (Bll.Update(ordecode )) { WriteLog(" 微支付交易成功=" +
+					 * ordecode); } else { WriteLog(" 微支付交易失败=" + ordecode); } }
+					 * catch (Exception ex) { WriteLog(ex," 微支付交易异常=" +
+					 * ordecode); } } else {
+					 * paySignReqHandler.SetParameter("return_code", "FAIL");
+					 * paySignReqHandler.SetParameter("return_msg", "交易失败"); }
+					 */
+					// 将微信订单返回信息插入到数据库
+					/* order.insert(notifyPayRequest); */
+					String order_id = notifyPayRequest.getOut_trade_no();
+					Order or = orderService.findById(order_id);
+					
+					httpHandler.recharge(or.getPhoneNum(), or.getPackageId(),order_id);
+					or.setStatus(1);
+					or.setTradeNo(notifyPayRequest.getTransaction_id());
+					or.setTotalFee(notifyPayRequest.getTotal_fee());
+					SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+					Date date = sdf.parse(notifyPayRequest.getTime_end());
+					or.setCloseTime(date);
+					
+					mav.setViewName("wechat/success_pay.jsp");
+					mav.addObject("resultcode",
+							notifyPayRequest.getResult_code());
+
+					// 给微信发送response消息
+					NotifyPayResponse npr = new NotifyPayResponse();
+					npr.setReturn_code("SUCCESS");
+					npr.setReturn_msg("OK");
+
+					xStream.alias("xml", NotifyPayResponse.class);// 根元素名需要是xml
+					response.getWriter().write(xStream.toXML(npr));
+					return mav;
+
+				} else {
+					NotifyPayResponse npr = new NotifyPayResponse();
+					npr.setReturn_code("FAIL");
+					npr.setReturn_msg("交易失败");
+					xStream.alias("xml", NotifyPayResponse.class);// 根元素名需要是xml
+					response.getWriter().write(xStream.toXML(npr));
+					return null;
+				}
+			} else {
+				/*
+				 * paySignReqHandler.SetParameter("return_code", "FAIL");
+				 * paySignReqHandler.SetParameter("return_msg", "签名失败");
+				 */
+				NotifyPayResponse npr = new NotifyPayResponse();
+				npr.setReturn_code("FAIL");
+				npr.setReturn_msg("签名失败");
+				xStream.alias("xml", NotifyPayResponse.class);// 根元素名需要是xml
+				response.getWriter().write(xStream.toXML(npr));
+				return null;
+			}
+			/*
+			 * string data = paySignReqHandler.ParseXML(); var result =
+			 * TenPayV3.Unifiedorder(data); WriteLog(" 微支付notice result=" +
+			 * result);
+			 */
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+  
+  
+  
+  
+  
+  
+  说明：
+  
+  1.随机字符串：微信对随机字符串的要求是不超过32位。我这边是这样生成的，用时间戳。 
+import java.util.Date;
+import java.util.Random;
+
+public class StringUtil {
+
+    /** 
+     * 创建UUID 
+     * @return 
+     */  
+    public static synchronized String makeUUID() {  
+        Date date = new Date();  
+        StringBuffer s = new StringBuffer(DateUtil.formatYmdhmsm(date));  
+        return s.append((new Random().nextInt(900) + 100)).toString();  
+    }
+}
+
+  
+  2.签名在上面一直没有详细说明，首先查看微信的安全规范中签名算法。key值，需要自己填写
+  
+  
+  private String createSign(UnifiedOrderRequest unifiedOrderRequest) {
+		// 根据规则创建可排序的map集合
+		SortedMap<String, String> packageParams = new TreeMap<String, String>();
+		packageParams.put("appid", unifiedOrderRequest.getAppid());
+		packageParams.put("body", unifiedOrderRequest.getBody());
+		packageParams.put("mch_id", unifiedOrderRequest.getMch_id());
+		packageParams.put("nonce_str", unifiedOrderRequest.getNonce_str());
+		packageParams.put("notify_url", unifiedOrderRequest.getNotify_url());
+		packageParams
+				.put("out_trade_no", unifiedOrderRequest.getOut_trade_no());
+		packageParams.put("spbill_create_ip",
+				unifiedOrderRequest.getSpbill_create_ip());
+		packageParams.put("trade_type", unifiedOrderRequest.getTrade_type());
+		packageParams.put("total_fee", unifiedOrderRequest.getTotal_fee());
+
+		StringBuffer sb = new StringBuffer();
+		Set es = packageParams.entrySet();// 字典序
+		Iterator it = es.iterator();
+		while (it.hasNext()) {
+			Map.Entry entry = (Map.Entry) it.next();
+			String k = (String) entry.getKey();
+			String v = (String) entry.getValue();
+			// 为空不参与签名、参数名区分大小写
+			if (null != v && !"".equals(v) && !"sign".equals(k)
+					&& !"key".equals(k)) {
+				sb.append(k + "=" + v + "&");
+			}
+		}
+		// 第二步拼接key，key设置路径：微信商户平台(pay.weixin.qq.com)-->账户设置-->API安全-->密钥设置
+		sb.append("key=" + "xxxxxxxxxxxxxxxxx");
+		String sign = Md5.encode(sb.toString()).toUpperCase();// MD5加密
+		return sign;
+	}
+}
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  

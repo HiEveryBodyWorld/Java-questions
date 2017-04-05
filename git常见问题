@@ -1,0 +1,4 @@
+提交到远程仓库的target 删除的方法，或者说是忽略target 提交在eclipse中：
+正确的做法应该是：git rm --cached logs/xx.log，然后更新 .gitignore 忽略掉目标文件，最后 git commit -m "We really don't want Git to track this anymore!"
+
+

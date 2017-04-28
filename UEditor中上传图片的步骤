@@ -1,0 +1,83 @@
+1. 找到ueditor中ueditor.config.js 修改serverUrl属性值，
+    serverUrl: URL + "jsp/controller.jsp"
+    
+    toolbars定义的是编辑器里显示的button 按钮组
+    
+ 2.
+ 将ueditor/jsp中lib下的jar拷贝到WEB——INF下的lib下ueditor.config.js中的controller。jsp才可以用。
+ 
+ 
+ 3.更改ueditor/1.4.3/dialogs/image下image.js文件中的actionUrl属性值，
+ actionUrl = "http://localhost:8081/sys/others/uploadup",
+ 这个地址是自己上传图片的地址。
+ 
+ 4.关注uploadSuccess这个方法，这个是上传图片后的回调函数。ret是返回的数据，返回数据是json串，参考jsp/src/com/baidu/ueditor/defice下的State和BaseState类。
+ 
+ uploader.on('uploadSuccess', function (file, ret) {
+                var $file = $('#' + file.id);
+                try {
+                    var responseText = (ret._raw || ret),
+                        json = utils.str2json(responseText);
+                    if (json.state == 'SUCCESS') {
+                        _this.imageList.push(json);
+                        $file.append('<span class="success"></span>');
+                    } else {
+                        $file.find('.error').text(json.state).show();
+                    }
+                } catch (e) {
+                    $file.find('.error').text(lang.errorServerUpload).show();
+                }
+            });
+            
+ 5.关注getInserList函数这个函数循环imageList中的数据，json串中key值是url，value值是url地址。
+ 
+ getInsertList: function () {
+            var i, data, list = [],
+                align = getAlign(),
+                prefix = editor.getOpt('imageUrlPrefix');
+            for (i = 0; i < this.imageList.length; i++) {
+                data = this.imageList[i];
+                list.push({
+                    src: prefix + data.url,
+                    _src: prefix + data.url,
+                    title: data.title,
+                    alt: data.original,
+                    floatStyle: align
+                });
+            }
+            return list;
+        }
+        
+        
+    6.上传图片的后台代码段。
+    这里的upfile 是前端上传的所有图片的 对象
+    state 是引用的是jsp/src/com/baidu/ueditor/defice下的State和BaseState中的类
+    putInfo方法设置返回数据，这里key值必须是“url”
+    
+     /**
+     * 上传图片
+     */
+    @RequestMapping(value = "/others/uploadup", method = RequestMethod.POST)
+    @ResponseBody
+    public String uploadup(MultipartHttpServletRequest  request){
+    	State state = null;
+    	state = new BaseState(true);
+    	List<MultipartFile> files = (List<MultipartFile>) request.getFiles("upfile");
+        try {
+        	if(files!=null){
+        		Integer id = new Integer(0);
+                for(int i=0;i<files.size();i++){  
+                    MultipartFile file = files.get(i);  
+                     id = othersManageService.insertImages(file);
+                     ImagesDetail imd = othersManageService.findImagesById(id);
+                     state.putInfo("url", imd.getUrl());
+                } 
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        String resultState = state.toJSONString();
+        return resultState;
+    }
+    
+    

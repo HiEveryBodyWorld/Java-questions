@@ -99,9 +99,23 @@ $(document).ready(function(){
         havePackageParams.put("total_fee", total_fee);  
         //havePackageParams.put("body", body);
         
-        String paramString = createRequestParams(new AlipaySubmit().buildRequestPara(havePackageParams));
+       // String paramString = createRequestParams(new AlipaySubmit().buildRequestPara(havePackageParams));
         
-        String preorderStr = sendPost(ALIPAY_GATEWAY_NEW,paramString);
+        //String preorderStr = sendPost(ALIPAY_GATEWAY_NEW,paramString);
+	      
+        String paramString = AlipaySubmit.buildRequestMysign(new AlipaySubmit().buildRequestPara(havePackageParams));
+        String sHtmlText = AlipaySubmit.buildRequest(havePackageParams,"get","确认");//这个地方必须这么调用才能出现验证码，否则自己写的发送get请求的方法是不起作用的。
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+		out.println(sHtmlText);
+        
+//        String preorderStr = sendGet(ALIPAY_GATEWAY_NEW,paramString);
+//        
+//        response.setCharacterEncoding("UTF-8");
+//        PrintWriter out = response.getWriter();
+//        out.write("<meta http-equiv='content-type' content='text/html;charset=UTF-8'/>");
+//        out.write(preorderStr);
+        
         
         return preorderStr;  
     }  

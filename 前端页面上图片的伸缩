@@ -1,0 +1,44 @@
+HTML：
+
+<div id="cbdTabDiv" class="tab-content">
+        <div class="tab-pane fade in active fdiv" id="center_shop_div">
+            <img src="images/bg.jpg" onload=proDownImage(this);> </img>
+        </div>
+        <div class="tab-pane fade" id="square_div">
+            <img src="images/logo.png" onload=proDownImage(this);> </img>
+        </div>
+        <div class="tab-pane fade" id="corridor_div">
+            <img src="images/NEWs.jpg" onload=proDownImage(this);> </img>
+        </div>
+
+</div>
+
+JS:
+<script type="text/javascript">
+
+  /*图片的伸缩*/
+    var proMaxHeight = 300;
+    var proMaxWidth = 400;
+    function proDownImage(ImgD){
+        var image=new Image();
+        image.src=ImgD.src;
+        if(image.width>=proMaxWidth ){
+            ImgD.width = proMaxWidth;
+            if(image.height>proMaxHeight){
+                ImgD.height =proMaxHeight;
+            }else{
+                ImgD.height = image.height;
+            }
+
+        }else{
+            ImgD.width =image.width
+            if(image.height>proMaxHeight){
+                ImgD.height =proMaxHeight;
+            }else{
+                ImgD.height = image.height;
+            }
+        }
+    }
+
+
+</script>

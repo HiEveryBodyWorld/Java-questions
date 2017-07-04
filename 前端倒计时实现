@@ -1,0 +1,101 @@
+<a href="javascript:;" class="reacquire" id="second">免费获取验证码</a>
+
+
+//将倒计时时间添加到cookie，下边是对cookie的操作
+function addCookie(name,value,expiresHours){
+			var cookieString = name+"="+value;
+			if(expiresHours>0){
+				var date = new Date();
+				date.setTime(date.getTime()+expiresHours*1000);
+				cookieString = cookieString +"; expires="+date.toGMTString();
+			}
+			document.cookie = cookieString+"; path=/";
+		}
+		
+		function editCookie(name,value,expiresHours){
+			var cookieString = name+"="+value;
+			if(expiresHours>0){
+				var date = new Date();
+				date.setTime(date.getTime()+expiresHours*1000);
+				cookieString = cookieString+"; expires="+date.toGMTString();
+			}
+			document.cookie = cookieString+";path=/";
+			
+		}
+		
+		var returnCookieValue;
+		function getCookieValue(name){
+			var strCookie = document.cookie;
+			var arrCookie = strCookie.split(";");
+			for(var i=0;i<arrCookie.length;i++){
+				var arr = arrCookie[i].split("=");
+				if(arr[0].trim()==name.trim()){
+					returnCookieValue = arr[1];
+					break;
+				}else{
+					returnCookieValue="";
+				}
+			}
+			return returnCookieValue
+		}
+		
+		//倒计时
+		
+		function settime(obj){
+			countdown = getCookieValue("secondsremained");
+			if(countdown == 0){
+				obj.removeAttr("disabled");
+				obj.text("免费获取验证码").css("color","#03a9f4");
+				obj.attr("onclick","sendSMS()")
+				return
+			}else{
+				obj.attr("disabled",true);
+				obj.text("重新发送("+countdown+")");
+				countdown--;
+				editCookie("secondsremained",countdown,countdown+1);
+			}
+			
+			setTimeout(function(){settime(obj)},1000)//每一秒钟执行一次
+		}
+    
+    
+    
+    在调用完发送验证码后台接口之后，调用
+    addCookie("secondsremained",60,60);
+		settime($("#second"))
+    
+    
+    
+    
+    function sendSMS(){
+			if($("#registername").val() == ""){
+				layer.msg('必须输入手机号!',{icon:1,time:1000});
+				return;
+			}
+			var data = {
+					phone:$("#registername").val()
+			};
+			jQuery.ajax({
+				type: 'post',
+				url: '<%=request.getContextPath()%>/sms/sendSMS',
+				data: data,
+				success: function(data){
+					if(data.result=="-1"){
+						layer.msg('一个手机号不能连续发送验证码!',{icon:1,time:2000});
+						$(".get-message").attr("disabled",true);
+						return
+					}else{
+						$(".get-message").attr("disabled",false);
+						$("#message-inf").fadeIn(100)
+						$(".get-message").html('<a href="javascript:;">下一步</a><img class="loading" src="images/loading.gif">').addClass("move-addinf").removeAttr("onclick");
+						layer.msg('已经发送验证码!',{icon:1,time:2000});
+						
+					}
+				}
+			})
+			addCookie("secondsremained",60,60);
+			settime($("#second"))
+			
+			
+		}
+		
